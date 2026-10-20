@@ -67,7 +67,8 @@ export default function DefHabito() {
   }
 
   function excluirHabito(id: string) {
-    setHabitos(habitos.filter((h) => h.id !== id));
+    const listaNova = habitos.filter((habito) => habito.id !== id);
+    setHabitos(listaNova);
   }
 
   return (
