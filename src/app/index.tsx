@@ -78,7 +78,7 @@ export default function DefHabito() {
       <View style={styles.linhaInput}>
         <TextInput
           style={styles.input}
-          placeholder="Ex: Beber água"
+          placeholder="Ex: Estudar para Paula"
           value={textoNovoHabito}
           onChangeText={setTextoNovoHabito}
         />
