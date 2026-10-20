@@ -1,98 +1,163 @@
-import * as Device from 'expo-device';
-import { Platform, StyleSheet } from 'react-native';
-import { SafeAreaView } from 'react-native-safe-area-context';
+import AsyncStorage from '@react-native-async-storage/async-storage';
+import { useEffect, useState } from 'react';
+import {
+  Button,
+  FlatList,
+  StyleSheet,
+  Text,
+  TextInput,
+  TouchableOpacity,
+  View,
+} from 'react-native';
 
-import { AnimatedIcon } from '@/components/animated-icon';
-import { HintRow } from '@/components/hint-row';
-import { ThemedText } from '@/components/themed-text';
-import { ThemedView } from '@/components/themed-view';
-import { WebBadge } from '@/components/web-badge';
-import { BottomTabInset, MaxContentWidth, Spacing } from '@/constants/theme';
+type Habito = {
+  id: string;
+  nome: string;
+  feitoHoje: boolean;
+};
 
-function getDevMenuHint() {
-  if (Platform.OS === 'web') {
-    return <ThemedText type="small">use browser devtools</ThemedText>;
+const CHAVE = '@habitos';
+
+export default function DefHabito() {
+  const [textoNovoHabito, setTextoNovoHabito] = useState('');
+  const [habitos, setHabitos] = useState<Habito[]>([]);
+  const [carregado, setCarregado] = useState(false);
+
+  useEffect(() => {
+    async function carregar() {
+      try {
+        const salvo = await AsyncStorage.getItem(CHAVE);
+        if (salvo !== null) {
+          setHabitos(JSON.parse(salvo));
+        }
+      } catch (erro) {
+        console.log('Erro ao carregar', erro);
+      }
+      setCarregado(true);
+    }
+    carregar();
+  }, []);
+
+  useEffect(() => {
+    if (!carregado) return;
+    AsyncStorage.setItem(CHAVE, JSON.stringify(habitos));
+  }, [habitos, carregado]);
+
+  function adicionarHabito() {
+    if (textoNovoHabito.trim() === '') return;
+
+    const novoHabito: Habito = {
+      id: Date.now().toString(),
+      nome: textoNovoHabito,
+      feitoHoje: false,
+    };
+
+    setHabitos([...habitos, novoHabito]);
+    setTextoNovoHabito('');
   }
-  if (Device.isDevice) {
-    return (
-      <ThemedText type="small">
-        shake device or press <ThemedText type="code">m</ThemedText> in terminal
-      </ThemedText>
-    );
+
+  function alternarFeito(id: string) {
+    const habitosAtualizados = habitos.map((habito) => {
+      if (habito.id === id) {
+        return { ...habito, feitoHoje: !habito.feitoHoje };
+      }
+      return habito;
+    });
+    setHabitos(habitosAtualizados);
   }
-  const shortcut = Platform.OS === 'android' ? 'cmd+m (or ctrl+m)' : 'cmd+d';
+
+  function excluirHabito(id: string) {
+    setHabitos(habitos.filter((h) => h.id !== id));
+  }
+
   return (
-    <ThemedText type="small">
-      press <ThemedText type="code">{shortcut}</ThemedText>
-    </ThemedText>
-  );
-}
+    <View style={styles.container}>
+      <Text style={styles.titulo}>Meus Hábitos</Text>
 
-export default function HomeScreen() {
-  return (
-    <ThemedView style={styles.container}>
-      <SafeAreaView style={styles.safeArea}>
-        <ThemedView style={styles.heroSection}>
-          <AnimatedIcon />
-          <ThemedText type="title" style={styles.title}>
-            Welcome to&nbsp;Expo
-          </ThemedText>
-        </ThemedView>
+      <View style={styles.linhaInput}>
+        <TextInput
+          style={styles.input}
+          placeholder="Ex: Beber água"
+          value={textoNovoHabito}
+          onChangeText={setTextoNovoHabito}
+        />
+        <Button title="Adicionar" onPress={adicionarHabito} />
+      </View>
 
-        <ThemedText type="code" style={styles.code}>
-          get started
-        </ThemedText>
+      <FlatList
+        data={habitos}
+        keyExtractor={(item) => item.id}
+        renderItem={({ item }) => (
+          <View style={styles.itemHabito}>
+            <TouchableOpacity
+              style={styles.areaTexto}
+              onPress={() => alternarFeito(item.id)}
+            >
+              <Text
+                style={[
+                  styles.textoHabito,
+                  item.feitoHoje && styles.textoFeito,
+                ]}
+              >
+                {item.feitoHoje ? '✅' : '⬜'} {item.nome}
+              </Text>
+            </TouchableOpacity>
 
-        <ThemedView type="backgroundElement" style={styles.stepContainer}>
-          <HintRow
-            title="Try editing"
-            hint={<ThemedText type="code">src/app/index.tsx</ThemedText>}
-          />
-          <HintRow title="Dev tools" hint={getDevMenuHint()} />
-          <HintRow
-            title="Fresh start"
-            hint={<ThemedText type="code">npm run reset-project</ThemedText>}
-          />
-        </ThemedView>
-
-        {Platform.OS === 'web' && <WebBadge />}
-      </SafeAreaView>
-    </ThemedView>
+            <TouchableOpacity onPress={() => excluirHabito(item.id)}>
+              <Text style={styles.botaoExcluir}>🗑️</Text>
+            </TouchableOpacity>
+          </View>
+        )}
+      />
+    </View>
   );
 }
 
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    justifyContent: 'center',
+    paddingTop: 60,
+    paddingHorizontal: 20,
+    backgroundColor: '#fff',
+  },
+  titulo: {
+    fontSize: 24,
+    fontWeight: 'bold',
+    marginBottom: 20,
+  },
+  linhaInput: {
     flexDirection: 'row',
-  },
-  safeArea: {
-    flex: 1,
-    paddingHorizontal: Spacing.four,
     alignItems: 'center',
-    gap: Spacing.three,
-    paddingBottom: BottomTabInset + Spacing.three,
-    maxWidth: MaxContentWidth,
+    gap: 10,
+    marginBottom: 20,
   },
-  heroSection: {
-    alignItems: 'center',
-    justifyContent: 'center',
+  input: {
     flex: 1,
-    paddingHorizontal: Spacing.four,
-    gap: Spacing.four,
+    borderWidth: 1,
+    borderColor: '#ccc',
+    borderRadius: 8,
+    paddingHorizontal: 12,
+    paddingVertical: 8,
   },
-  title: {
-    textAlign: 'center',
+  itemHabito: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    paddingVertical: 12,
+    borderBottomWidth: 1,
+    borderBottomColor: '#eee',
   },
-  code: {
-    textTransform: 'uppercase',
+  areaTexto: {
+    flex: 1,
   },
-  stepContainer: {
-    gap: Spacing.three,
-    alignSelf: 'stretch',
-    paddingHorizontal: Spacing.three,
-    paddingVertical: Spacing.four,
-    borderRadius: Spacing.four,
+  textoHabito: {
+    fontSize: 16,
+  },
+  textoFeito: {
+    textDecorationLine: 'line-through',
+    color: '#999',
+  },
+  botaoExcluir: {
+    fontSize: 20,
+    paddingHorizontal: 8,
   },
 });
